@@ -57,10 +57,10 @@ class Projection(object):
         return LatLng(lat, lng)
 
 def gte(a, b):
-    return a > b or abs(a - b) <= EPSILON
+    return a > b or abs(a - b) <= EPSILON or a == b
 
 def lte(a, b):
-    return b > a or abs(a - b) <= EPSILON
+    return b > a or abs(a - b) <= EPSILON or a == b
 
 if __name__ == '__main__':
     p = Projection()

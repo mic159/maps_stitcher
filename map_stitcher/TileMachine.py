@@ -40,6 +40,8 @@ class TileMachine(object):
                 max_y = max(max_y, y)
                 break
 
+        print('Max x: ', max_x, 'Max y:', max_y)
+
         """ then use skip_check=True to add (y+1) row and (x+1) column
             [*][*][*][ ]
             [*][*][*][ ]

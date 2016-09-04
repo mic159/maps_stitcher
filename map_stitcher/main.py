@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-from geo import LatLng, LatLngBounds
-from TileMachine import TileMachine
-from TileDownloader import TileDownloader
-from TileStitcher import TileStitcher
+from map_stitcher.geo import LatLng, LatLngBounds
+from map_stitcher.TileMachine import TileMachine
+from map_stitcher.TileDownloader import TileDownloader
+from map_stitcher.TileStitcher import TileStitcher
 
 from distutils.dir_util import mkpath
 import argparse
@@ -13,10 +13,11 @@ import os
 
 TILES_FILE_NAME = 'tiles.json'
 
+
 def download(project):
     parser = argparse.ArgumentParser()
     parser.add_argument('--key', action='store', required=True, help='Google API key')
-    parser.add_argument('--skip', action='store_true', help='Redownload existing tiles')
+    parser.add_argument('--force', action='store_true', help='Redownload existing tiles')
     args, unknown = parser.parse_known_args()
 
     project_path = path.join(os.getcwd(), project)
@@ -24,31 +25,36 @@ def download(project):
     mkpath(tiles_path)
 
     with open(path.join(project_path, TILES_FILE_NAME)) as tiles_json:
-        downloader = TileDownloader(tiles_path, json.load(tiles_json), args.key, args.skip)
-        downloader.download()
+        downloader = TileDownloader(tiles_path, json.load(tiles_json), args.key, skip=not args.force)
+    downloader.download()
+
 
 def init(project):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--zoom', action='store', type=int, default=1, help='Zoom level between 0 (world) to 21+ (street).')
+    parser.add_argument('--zoom', action='store', type=int, default=1,
+                        help='Zoom level between 0 (world) to 21+ (street).')
     parser.add_argument('--scale', action='store', type=int, default=1, help='Scale of image (1, 2, 4)')
     parser.add_argument('--size', action='store', type=int, default=640, help='Size of image')
-    parser.add_argument('--southwest', action='store', required=True, help='Southwest latitude and longitude. e.g. --southwest=39.1,-83.2')
-    parser.add_argument('--northeast', action='store', required=True, help='Northeast latitude and longitude, e.g. --northeast=40.3,-82.4')
+    parser.add_argument('--southwest', action='store', required=True,
+                        help='Southwest latitude and longitude. e.g. --southwest=39.1,-83.2')
+    parser.add_argument('--northeast', action='store', required=True,
+                        help='Northeast latitude and longitude, e.g. --northeast=40.3,-82.4')
     args, unknown = parser.parse_known_args()
 
     project_path = path.join(os.getcwd(), project)
 
     tile_machine = TileMachine(size=args.size, zoom=args.zoom, scale=args.scale, params=unknown)
-    def tiles_to_json(tiles): return map(lambda tile: { 'url': tile.url, 'x': tile.x, 'y': tile.y }, tiles)
+
+    def tiles_to_json(tiles): return map(lambda tile: {'url': tile.url, 'x': tile.x, 'y': tile.y}, tiles)
+
     def parse_latlng(latlng_str): return map(lambda a: float(a), latlng_str.split(',', 2))
 
     bounds = LatLngBounds(
         LatLng(*parse_latlng(args.southwest)),
         LatLng(*parse_latlng(args.northeast)))
-    
+
     mkpath(project_path)
     tiles = tile_machine.tiles_from_bounds(bounds)
-    tiles_file = open(path.join(project_path, TILES_FILE_NAME), 'w')
 
     ouput = {
         'config': {
@@ -64,7 +70,9 @@ def init(project):
         }
     }
 
-    json.dump(ouput, tiles_file)
+    with open(path.join(project_path, TILES_FILE_NAME), 'wb') as tiles_file:
+        json.dump(ouput, tiles_file)
+
 
 def stitch(project):
     parser = argparse.ArgumentParser()
@@ -78,19 +86,16 @@ def stitch(project):
 
     with open(path.join(project_path, TILES_FILE_NAME)) as tiles_json:
         stitcher = TileStitcher(tiles_path, json.load(tiles_json))
-        image = stitcher.stitch()
-        image.save(output_path, args.format)
-    
+    image = stitcher.stitch()
+    image.save(output_path, args.format)
 
-def main(args):
-    commands = dict(download=download, stitch=stitch, init=init)
-    if args.command in commands:
-        commands[args.command](args.project)
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('command', action='store', help='Command to execute (init, download, stitch)')
     parser.add_argument('project', action='store', help='Directory to store this project in')
     args, unknown = parser.parse_known_args()
 
-    main(args)
+    commands = dict(download=download, stitch=stitch, init=init)
+    if args.command in commands:
+        commands[args.command](args.project)
